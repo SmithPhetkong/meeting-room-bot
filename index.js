@@ -549,7 +549,7 @@ const handleAdminLogin = async (userId, replyToken, userMessage) => {
 
     try {
       // ค้นหา admin ใน MongoDB
-      const admin = await adminCollection.findOne({
+      const admin = await adminsCollection.findOne({
         username: userSession.adminUsername,
         password: userSession.adminPassword, // ควรเข้ารหัส Password ในการใช้งานจริง
       });
