@@ -642,7 +642,17 @@ const askNextAdminQuestion = async (userId, replyToken, userMessage) => {
   // บันทึกคำตอบของคำถามก่อนหน้า
   if (currentQuestionIndex > 0) {
     const previousQuestion = adminQuestions[currentQuestionIndex - 1];
-    userSession[previousQuestion.key] = userMessage;
+    const answer = userMessage;
+
+    // ตรวจสอบ Password (ตัวอย่าง: ความยาวขั้นต่ำ 6 ตัวอักษร)
+    if (previousQuestion.key === "password" && answer.length < 6) {
+      return client.replyMessage(replyToken, {
+        type: "text",
+        text: "❌ Password ต้องมีความยาวอย่างน้อย 6 ตัวอักษร กรุณาลองใหม่อีกครั้ง",
+      });
+    }
+
+    userSession[previousQuestion.key] = answer;
   }
 
   if (currentQuestionIndex < adminQuestions.length) {
@@ -1475,12 +1485,61 @@ RUMA จะส่งข้อความสรุปการจองมาใ
       const adminQuestions = ["username", "password", "email"];
       const currentQuestionIndex = userSession.currentQuestionIndex - 1;
 
-      if (currentQuestionIndex >= 0 && currentQuestionIndex < adminQuestions.length) {
-        const key = adminQuestions[currentQuestionIndex];
-        userSession[key] = event.message.text; // บันทึกคำตอบของผู้ใช้
+      // บันทึกคำตอบของคำถามก่อนหน้า
+      if (currentQuestionIndex > 0) {
+        const previousQuestion = adminQuestions[currentQuestionIndex - 1];
+        const answer = userMessage;
+
+        // ตรวจสอบ Password (ตัวอย่าง: ความยาวขั้นต่ำ 6 ตัวอักษร)
+        if (previousQuestion.key === "password" && answer.length < 6) {
+          return client.replyMessage(replyToken, {
+            type: "text",
+            text: "❌ Password ต้องมีความยาวอย่างน้อย 6 ตัวอักษร กรุณาลองใหม่อีกครั้ง",
+          });
+        }
+
+        userSession[previousQuestion.key] = answer;
       }
 
-      return askNextAdminQuestion(event.source.userId, event.replyToken);
+      if (currentQuestionIndex < adminQuestions.length) {
+        const question = adminQuestions[currentQuestionIndex];
+        userSession.currentQuestionIndex = currentQuestionIndex + 1;
+
+        // ส่งคำถามถัดไป
+        try {
+          await client.replyMessage(replyToken, {
+            type: "text",
+            text: question.text,
+          });
+        } catch (error) {
+          console.error("Error sending message:", error);
+        }
+      } else {
+        // เมื่อถามครบทุกคำถามแล้ว
+        const newAdmin = {
+          username: userSession.username,
+          password: userSession.password,
+          email: userSession.email,
+          createdAt: new Date(),
+        };
+
+        try {
+          await adminCollection.insertOne(newAdmin);
+          await client.replyMessage(replyToken, {
+            type: "text",
+            text: "✅ เพิ่มแอดมินสำเร็จ!",
+          });
+        } catch (error) {
+          console.error("Error adding admin:", error);
+          await client.replyMessage(replyToken, {
+            type: "text",
+            text: "❌ เกิดข้อผิดพลาดในการเพิ่มแอดมิน กรุณาลองใหม่อีกครั้ง",
+          });
+        }
+
+        // ล้างข้อมูล session
+        delete session[userId];
+      }
     }
   }
 };
