@@ -620,6 +620,7 @@ const handleAdminLogin = async (userId, replyToken, userMessage) => {
           },
         };
 
+        // ส่ง Flex Message เมนูแอดมิน
         return client.replyMessage(replyToken, adminMenuFlexMessage);
       } else {
         delete session[userId];
@@ -741,23 +742,93 @@ const handleEvent = async (event) => {
       if (userSession.adminStep === "password") {
         userSession.adminPassword = userMessage;
 
-        // ตรวจสอบข้อมูล Username และ Password
-        if (
-          userSession.adminUsername === adminCredentials.username &&
-          userSession.adminPassword === adminCredentials.password
-        ) {
-          userSession.isAdmin = true;
-          delete userSession.adminStep;
-
-          return client.replyMessage(event.replyToken, {
-            type: "text",
-            text: "✅ เข้าสู่ระบบแอดมินสำเร็จ!",
+        try {
+          // ค้นหา admin ใน MongoDB
+          const admin = await adminsCollection.findOne({
+            username: userSession.adminUsername,
+            password: userSession.adminPassword, // ควรเข้ารหัส Password ในการใช้งานจริง
           });
-        } else {
-          delete session[userId];
-          return client.replyMessage(event.replyToken, {
+
+          if (admin) {
+            userSession.isAdmin = true;
+            delete userSession.adminStep;
+
+            // Flex Message for admin menu
+            const adminMenuFlexMessage = {
+              type: "flex",
+              altText: "เมนูแอดมิน",
+              contents: {
+                type: "bubble",
+                body: {
+                  type: "box",
+                  layout: "vertical",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "📋 เมนูแอดมิน",
+                      weight: "bold",
+                      size: "lg",
+                      color: "#1DB446",
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#007BFF",
+                      action: {
+                        type: "postback",
+                        label: "📋 ดูรายการจอง",
+                        data: "action=viewBookings",
+                      },
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#28A745",
+                      action: {
+                        type: "postback",
+                        label: "➕ เพิ่มห้องประชุม",
+                        data: "action=addRoom",
+                      },
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#FF5733",
+                      action: {
+                        type: "postback",
+                        label: "🗑️ ลบห้องประชุม",
+                        data: "action=deleteRoom",
+                      },
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#6C757D",
+                      action: {
+                        type: "postback",
+                        label: "➕ เพิ่มแอดมิน",
+                        data: "action=addAdmin",
+                      },
+                    },
+                  ],
+                },
+              },
+            };
+
+            // ส่ง Flex Message เมนูแอดมิน
+            return client.replyMessage(replyToken, adminMenuFlexMessage);
+          } else {
+            delete session[userId];
+            return client.replyMessage(replyToken, {
+              type: "text",
+              text: "❌ Username หรือ Password ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
+            });
+          }
+        } catch (error) {
+          console.error("Error during admin login:", error);
+          return client.replyMessage(replyToken, {
             type: "text",
-            text: "❌ Username หรือ Password ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
+            text: "❌ เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง",
           });
         }
       }
