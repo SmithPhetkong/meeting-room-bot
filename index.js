@@ -554,8 +554,8 @@ const handleAdminLogin = (userId, replyToken, userMessage) => {
     ) {
       userSession.isAdmin = true;
       delete userSession.adminStep;
-      delete userSession.mode; // ล้าง mode หลังจากเข้าสู่ระบบสำเร็จ
 
+      // Flex Message สำหรับเมนูแอดมิน
       const adminMenuFlexMessage = {
         type: "flex",
         altText: "เมนูแอดมิน",
@@ -580,6 +580,36 @@ const handleAdminLogin = (userId, replyToken, userMessage) => {
                   type: "postback",
                   label: "📋 ดูรายการจอง",
                   data: "action=viewBookings",
+                },
+              },
+              {
+                type: "button",
+                style: "primary",
+                color: "#28A745",
+                action: {
+                  type: "postback",
+                  label: "➕ เพิ่มห้องประชุม",
+                  data: "action=addRoom",
+                },
+              },
+              {
+                type: "button",
+                style: "primary",
+                color: "#FF5733",
+                action: {
+                  type: "postback",
+                  label: "🗑️ ลบห้องประชุม",
+                  data: "action=deleteRoom",
+                },
+              },
+              {
+                type: "button",
+                style: "primary",
+                color: "#6C757D",
+                action: {
+                  type: "postback",
+                  label: "➕ เพิ่มแอดมิน",
+                  data: "action=addAdmin",
                 },
               },
             ],
@@ -643,7 +673,6 @@ const askNextAdminQuestion = async (userId, replyToken, userMessage) => {
         type: "text",
         text: "✅ เพิ่มแอดมินสำเร็จ!",
       });
-      delete session[userId]; // ล้าง session หลังจากเพิ่มแอดมินสำเร็จ
     } catch (error) {
       console.error("Error adding admin:", error);
       await client.replyMessage(replyToken, {
@@ -704,8 +733,8 @@ const handleEvent = async (event) => {
           if (admin) {
             userSession.isAdmin = true;
             delete userSession.adminStep;
-            delete userSession.mode; // ล้าง mode หลังจากเข้าสู่ระบบสำเร็จ
 
+            // Flex Message สำหรับเมนูแอดมิน
             const adminMenuFlexMessage = {
               type: "flex",
               altText: "เมนูแอดมิน",
@@ -732,22 +761,52 @@ const handleEvent = async (event) => {
                         data: "action=viewBookings",
                       },
                     },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#28A745",
+                      action: {
+                        type: "postback",
+                        label: "➕ เพิ่มห้องประชุม",
+                        data: "action=addRoom",
+                      },
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#FF5733",
+                      action: {
+                        type: "postback",
+                        label: "🗑️ ลบห้องประชุม",
+                        data: "action=deleteRoom",
+                      },
+                    },
+                    {
+                      type: "button",
+                      style: "primary",
+                      color: "#6C757D",
+                      action: {
+                        type: "postback",
+                        label: "➕ เพิ่มแอดมิน",
+                        data: "action=addAdmin",
+                      },
+                    },
                   ],
                 },
               },
             };
 
-            return client.replyMessage(replyToken, adminMenuFlexMessage);
+            return client.replyMessage(event.replyToken, adminMenuFlexMessage);
           } else {
             delete session[userId];
-            return client.replyMessage(replyToken, {
+            return client.replyMessage(event.replyToken, {
               type: "text",
               text: "❌ Username หรือ Password ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
             });
           }
         } catch (error) {
           console.error("Error checking admin credentials:", error);
-          return client.replyMessage(replyToken, {
+          return client.replyMessage(event.replyToken, {
             type: "text",
             text: "❌ เกิดข้อผิดพลาดในการตรวจสอบข้อมูล กรุณาลองใหม่อีกครั้ง",
           });
