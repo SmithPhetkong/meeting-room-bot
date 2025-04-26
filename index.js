@@ -555,7 +555,7 @@ const handleAdminLogin = (userId, replyToken, userMessage) => {
       userSession.isAdmin = true;
       delete userSession.adminStep;
 
-      // Flex Message สำหรับเมนูแอดมิน
+      // Flex Message for admin menu
       const adminMenuFlexMessage = {
         type: "flex",
         altText: "เมนูแอดมิน",
@@ -698,9 +698,7 @@ const handleEvent = async (event) => {
 
     // เริ่มโหมดเข้าสู่ระบบแอดมิน
     if (userMessage === "เข้าสู่ระบบแอดมิน") {
-      session[userId] = {}; // ล้าง session ก่อน
-      session[userId].mode = "adminLogin";
-      session[userId].adminStep = "username";
+      session[userId] = { mode: "adminLogin", adminStep: "username" };
       return client.replyMessage(event.replyToken, {
         type: "text",
         text: "กรุณาใส่ Username ของคุณ:",
@@ -723,92 +721,23 @@ const handleEvent = async (event) => {
       if (userSession.adminStep === "password") {
         userSession.adminPassword = userMessage;
 
-        try {
-          // ตรวจสอบข้อมูล Username และ Password จาก MongoDB
-          const admin = await adminCollection.findOne({
-            username: userSession.adminUsername,
-            password: userSession.adminPassword, // ควรเข้ารหัส Password ในการใช้งานจริง
-          });
+        // ตรวจสอบข้อมูล Username และ Password
+        if (
+          userSession.adminUsername === adminCredentials.username &&
+          userSession.adminPassword === adminCredentials.password
+        ) {
+          userSession.isAdmin = true;
+          delete userSession.adminStep;
 
-          if (admin) {
-            userSession.isAdmin = true;
-            delete userSession.adminStep;
-
-            // Flex Message สำหรับเมนูแอดมิน
-            const adminMenuFlexMessage = {
-              type: "flex",
-              altText: "เมนูแอดมิน",
-              contents: {
-                type: "bubble",
-                body: {
-                  type: "box",
-                  layout: "vertical",
-                  contents: [
-                    {
-                      type: "text",
-                      text: "📋 เมนูแอดมิน",
-                      weight: "bold",
-                      size: "lg",
-                      color: "#1DB446",
-                    },
-                    {
-                      type: "button",
-                      style: "primary",
-                      color: "#007BFF",
-                      action: {
-                        type: "postback",
-                        label: "📋 ดูรายการจอง",
-                        data: "action=viewBookings",
-                      },
-                    },
-                    {
-                      type: "button",
-                      style: "primary",
-                      color: "#28A745",
-                      action: {
-                        type: "postback",
-                        label: "➕ เพิ่มห้องประชุม",
-                        data: "action=addRoom",
-                      },
-                    },
-                    {
-                      type: "button",
-                      style: "primary",
-                      color: "#FF5733",
-                      action: {
-                        type: "postback",
-                        label: "🗑️ ลบห้องประชุม",
-                        data: "action=deleteRoom",
-                      },
-                    },
-                    {
-                      type: "button",
-                      style: "primary",
-                      color: "#6C757D",
-                      action: {
-                        type: "postback",
-                        label: "➕ เพิ่มแอดมิน",
-                        data: "action=addAdmin",
-                      },
-                    },
-                  ],
-                },
-              },
-            };
-
-            return client.replyMessage(event.replyToken, adminMenuFlexMessage);
-          } else {
-            delete session[userId];
-            return client.replyMessage(event.replyToken, {
-              type: "text",
-              text: "❌ Username หรือ Password ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
-            });
-          }
-        } catch (error) {
-          console.error("Error checking admin credentials:", error);
           return client.replyMessage(event.replyToken, {
             type: "text",
-            text: "❌ เกิดข้อผิดพลาดในการตรวจสอบข้อมูล กรุณาลองใหม่อีกครั้ง",
+            text: "✅ เข้าสู่ระบบแอดมินสำเร็จ!",
+          });
+        } else {
+          delete session[userId];
+          return client.replyMessage(event.replyToken, {
+            type: "text",
+            text: "❌ Username หรือ Password ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
           });
         }
       }
@@ -816,21 +745,24 @@ const handleEvent = async (event) => {
 
     // เริ่มโหมดเพิ่มแอดมิน
     if (userMessage === "เพิ่มแอดมิน") {
-      if (!session[userId]?.isAdmin) {
+      if (!session[userId].isAdmin) {
         return client.replyMessage(event.replyToken, {
           type: "text",
           text: "❌ คุณต้องเข้าสู่ระบบแอดมินก่อนเพื่อเพิ่มแอดมินใหม่",
         });
       }
-      session[userId] = {}; // ล้าง session ก่อน
-      session[userId].mode = "addAdmin";
-      session[userId].currentQuestionIndex = 0;
+
+      session[userId] = { mode: "addAdmin", currentQuestionIndex: 0 };
       return askNextAdminQuestion(userId, event.replyToken);
     }
 
+    // ดำเนินการถามคำถามถัดไปในโหมดเพิ่มแอดมิน
+    if (session[userId].mode === "addAdmin") {
+      return askNextAdminQuestion(userId, event.replyToken, userMessage);
+    }
+
     if (userMessage === "ยกเลิกการจอง") {
-      session[userId] = {}; // ล้าง session ก่อน
-      session[userId].mode = "cancel";
+      session[userId] = { mode: "cancel" }; // ตั้งค่าโหมดเป็นยกเลิกการจอง
       return client.replyMessage(event.replyToken, {
         type: "text",
         text: "กรุณาระบุรหัสการจองที่ต้องการยกเลิก",
